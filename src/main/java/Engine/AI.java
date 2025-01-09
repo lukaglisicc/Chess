@@ -21,6 +21,16 @@ public class AI {
     private double evaluate(){
         double result = 0;
         evalCount++;
+
+//        //Quiescence search
+//        if (!engine.getAllValidCaptures().isEmpty()){
+//            if (engine.isWhiteTurn)
+//                result = maxQ(-Double.MAX_VALUE, Double.MAX_VALUE);
+//            else
+//                result = minQ(-Double.MAX_VALUE, Double.MAX_VALUE);
+//            return result;
+//        }
+
         result += Long.bitCount(engine.pawnw) - Long.bitCount(engine.pawnb);
         result += (Long.bitCount(engine.bishopw) - Long.bitCount(engine.bishopb)) * 3;
         result += (Long.bitCount(engine.knightw) - Long.bitCount(engine.knightb)) * 3.5;
@@ -147,6 +157,70 @@ public class AI {
                 alpha = value;
             }
             engine.undoMove(move);
+            if (max > beta) {
+                pruneCount++;
+                return max;
+            }
+        }
+        return max;
+    }
+
+    private double minQ(double alpha, double beta){
+
+        List<Integer> captures = engine.getAllValidCaptures();
+        List<Integer> moves = engine.getAllValidMoves();
+        if (moves.isEmpty()){
+            if (engine.isBlackInCheck)
+                return Double.MAX_VALUE - 1;
+            else
+                return 0;
+        }
+
+        if (captures.isEmpty()){
+            return evaluate();
+        }
+
+
+        double min = Double.MAX_VALUE;
+        for (Integer capture : captures) {
+            engine.move(capture);
+            double value = maxQ(alpha, beta);
+            if (value < min) {
+                min = value;
+                beta = value;
+            }
+            engine.undoMove(capture);
+            if (min < alpha) {
+                pruneCount++;
+                return min;
+            }
+        }
+        return min;
+    }
+
+    private double maxQ(double alpha, double beta){
+
+        List<Integer> moves = engine.getAllValidMoves();
+        List<Integer> captures = engine.getAllValidCaptures();
+        if (moves.isEmpty()){
+            if (engine.isWhiteInCheck)
+                return -Double.MAX_VALUE + 1;
+            else
+                return 0;
+        }
+        if (captures.isEmpty()){
+            return evaluate();
+        }
+
+        double max = -Double.MAX_VALUE;
+        for (Integer capture : captures) {
+            engine.move(capture);
+            double value = minQ(alpha, beta);
+            if (value > max) {
+                max = value;
+                alpha = value;
+            }
+            engine.undoMove(capture);
             if (max > beta) {
                 pruneCount++;
                 return max;

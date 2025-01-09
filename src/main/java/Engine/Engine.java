@@ -606,6 +606,135 @@ public class Engine implements IPublisher {
     }
 
     /**
+     * Computes a list of all valid capture moves for the current position.
+     * @return List of all available captures
+     */
+    public List<Integer> getAllValidCaptures(){
+
+        //Set initial capacity to average number of valid moves in a chess position
+        List<Integer> validCaptures = new ArrayList<>(30);
+
+        //Code is identical for both cases, but it's done like this to minimize setting of temporary variables
+        //Very likely unnecessary, but might provide marginal speed up in bulk move generation
+        if (isWhiteTurn){
+            //Get indices for all active squares
+            for (int startIndex : getIndicesFromBitmask(piecemaskw)){
+                //Calculate piece info
+                long startMask = getFieldMask(startIndex);
+                int startPiece = getPieceType(startMask, true);
+
+                //Get all valid captures for piece
+                long moveMask = getValidMoves(startIndex, startPiece, true, startMask) & piecemaskb;
+                //Get indices of all valid moves
+                for (int endIndex : getIndicesFromBitmask(moveMask)){
+                    //Calculate move info
+                    long endMask = getFieldMask(endIndex);
+                    int endPiece = getPieceType(endMask, false);
+                    boolean castle = ((startPiece == KING_WHITE) && (startIndex == 60) && ((endIndex == 62) || (endIndex == 58)));
+                    boolean isEnPassant = ((startPiece == PAWN_WHITE) && ((endMask & enPassant) != 0));
+                    boolean promotion = ((startPiece == PAWN_WHITE) && (endIndex < 8));
+
+                    //Determine whether to remove castling rights
+                    boolean removedCastleBK = false;
+                    boolean removedCastleBQ = false;
+                    boolean removedCastleWK = false;
+                    boolean removedCastleWQ = false;
+                    if (startPiece == KING_WHITE){
+                        removedCastleWK = canWhiteCastleK;
+                        removedCastleWQ = canWhiteCastleQ;
+                    } else if (startPiece == ROOK_WHITE){
+                        if (startIndex == 56)
+                            removedCastleWQ = canWhiteCastleQ;
+                        if (startIndex == 63)
+                            removedCastleWK = canWhiteCastleK;
+                    }
+                    if (endPiece == ROOK_BLACK){
+                        if (endIndex == 0)
+                            removedCastleBQ = canBlackCastleQ;
+                        if (endIndex == 7)
+                            removedCastleBK = canBlackCastleK;
+                    }
+
+                    //Remember en passant target square, so it can be restored when undoing move
+                    boolean lastMoveEP = (enPassant != 0);
+                    int targetEP = 0;
+                    if (lastMoveEP){
+                        targetEP = indexXLUT[getIndexFromBitmask(enPassant)];
+                    }
+
+                    //If promotion add every variation
+                    if (!promotion)
+                        validCaptures.add(Move.toPackedInteger(startIndex, endIndex, startPiece, endPiece, castle, isEnPassant, promotion, removedCastleBK, removedCastleBQ, removedCastleWK,removedCastleWQ, lastMoveEP, targetEP));
+                    else{
+                        validCaptures.add(Move.toPackedInteger(startIndex, endIndex, QUEEN_WHITE, endPiece, castle, isEnPassant, promotion, removedCastleBK, removedCastleBQ, removedCastleWK,removedCastleWQ, lastMoveEP, targetEP));
+                        validCaptures.add(Move.toPackedInteger(startIndex, endIndex, KNIGHT_WHITE, endPiece, castle, isEnPassant, promotion, removedCastleBK, removedCastleBQ, removedCastleWK,removedCastleWQ, lastMoveEP, targetEP));
+                        validCaptures.add(Move.toPackedInteger(startIndex, endIndex, ROOK_WHITE, endPiece, castle, isEnPassant, promotion, removedCastleBK, removedCastleBQ, removedCastleWK,removedCastleWQ, lastMoveEP, targetEP));
+                        validCaptures.add(Move.toPackedInteger(startIndex, endIndex, BISHOP_WHITE, endPiece, castle, isEnPassant, promotion, removedCastleBK, removedCastleBQ, removedCastleWK,removedCastleWQ, lastMoveEP, targetEP));
+                    }
+                }
+            }
+        } else {
+            //Get indices for all active squares
+            for (int startIndex : getIndicesFromBitmask(piecemaskb)){
+                //Calculate piece info
+                long startMask = getFieldMask(startIndex);
+                int startPiece = getPieceType(startMask, false);
+
+                //Get all valid captures for piece
+                long moveMask = getValidMoves(startIndex, startPiece, false, startMask) & piecemaskw;
+                //Get indices of all valid moves
+                for (int endIndex : getIndicesFromBitmask(moveMask)){
+                    //Calculate move info
+                    long endMask = getFieldMask(endIndex);
+                    int endPiece = getPieceType(endMask, true);
+                    boolean castle = ((startPiece == KING_BLACK) && (startIndex == 4) && ((endIndex == 2) || (endIndex == 6)));
+                    boolean isEnPassant = ((startPiece == PAWN_BLACK) && ((endMask & enPassant) != 0));
+                    boolean promotion = ((startPiece == PAWN_BLACK) && (endIndex > 55));
+
+                    //Determine whether to remove castling rights
+                    boolean removedCastleBK = false;
+                    boolean removedCastleBQ = false;
+                    boolean removedCastleWK = false;
+                    boolean removedCastleWQ = false;
+                    if (startPiece == KING_BLACK){
+                        removedCastleBK = canBlackCastleK;
+                        removedCastleBQ = canBlackCastleQ;
+                    } else if (startPiece == ROOK_BLACK){
+                        if (startIndex == 0)
+                            removedCastleBQ = canBlackCastleQ;
+                        if (startIndex == 7)
+                            removedCastleBK = canBlackCastleK;
+                    }
+                    if (endPiece == ROOK_WHITE){
+                        if (endIndex == 56)
+                            removedCastleWQ = canWhiteCastleQ;
+                        if (endIndex == 63)
+                            removedCastleWK = canWhiteCastleK;
+                    }
+
+                    //Remember en passant target square, so it can be restored when undoing move
+                    boolean lastMoveEP = (enPassant != 0);
+                    int targetEP = 0;
+                    if (lastMoveEP){
+                        targetEP = indexXLUT[getIndexFromBitmask(enPassant)];
+                    }
+
+                    //If promotion add every variation
+                    if (!promotion)
+                        validCaptures.add(Move.toPackedInteger(startIndex, endIndex, startPiece, endPiece, castle, isEnPassant, promotion, removedCastleBK, removedCastleBQ, removedCastleWK,removedCastleWQ, lastMoveEP, targetEP));
+                    else{
+                        validCaptures.add(Move.toPackedInteger(startIndex, endIndex, QUEEN_BLACK, endPiece, castle, isEnPassant, promotion, removedCastleBK, removedCastleBQ, removedCastleWK,removedCastleWQ, lastMoveEP, targetEP));
+                        validCaptures.add(Move.toPackedInteger(startIndex, endIndex, KNIGHT_BLACK, endPiece, castle, isEnPassant, promotion, removedCastleBK, removedCastleBQ, removedCastleWK,removedCastleWQ, lastMoveEP, targetEP));
+                        validCaptures.add(Move.toPackedInteger(startIndex, endIndex, ROOK_BLACK, endPiece, castle, isEnPassant, promotion, removedCastleBK, removedCastleBQ, removedCastleWK,removedCastleWQ, lastMoveEP, targetEP));
+                        validCaptures.add(Move.toPackedInteger(startIndex, endIndex, BISHOP_BLACK, endPiece, castle, isEnPassant, promotion, removedCastleBK, removedCastleBQ, removedCastleWK,removedCastleWQ, lastMoveEP, targetEP));
+                    }
+                }
+            }
+        }
+        return validCaptures;
+    }
+
+    /**
      * Parses provided UCI move and converts it to internal packed int format.
      * Move validity is checked, and 0 is outputted if it's invalid.
      * Input string should still follow UCI formatting, even if the move can't be made on the board.

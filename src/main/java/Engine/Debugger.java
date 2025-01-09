@@ -323,4 +323,13 @@ public class Debugger {
         }
     }
 
+
+    public List<Int2> getAllAvailableCaptures(){
+        List<Int2> captures = new ArrayList<Int2>();
+        for (int move : engine.getAllValidCaptures()){
+            int index = (move >> 6) & 0x3F;
+            captures.add(new Int2(index % 8, index / 8));
+        }
+        return captures;
+    }
 }

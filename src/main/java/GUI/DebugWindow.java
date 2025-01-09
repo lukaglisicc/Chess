@@ -129,6 +129,12 @@ public class DebugWindow {
         button22.setOnAction(e -> {
             engine.getDebugger().loadBadState();
         });
+        Button button23 = new Button("Get all captures");
+        button23.setOnAction(e -> {
+            List<Int2> f = engine.getDebugger().getAllAvailableCaptures();
+            maingui.clearHighlight();
+            maingui.update(NotificationType.HIGHLIGHT_FIELDS, f);
+        });
 
 
 
@@ -153,6 +159,7 @@ public class DebugWindow {
         root.getChildren().add(button20);
         root.getChildren().add(button21);
         root.getChildren().add(button22);
+        root.getChildren().add(button23);
 
         scene = new Scene(root);
         stage = new Stage();
