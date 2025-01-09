@@ -10,6 +10,10 @@ public class AI {
     private int pruneCount;
     private int evalCount;
 
+    private final long SECOND = 1000000000;
+    private final long maxTime = SECOND * 2;
+    private long startTime;
+
     public AI(Engine engine) {
         this.engine = engine;
     }
@@ -41,16 +45,21 @@ public class AI {
             return moves.getFirst();
 
 
-        int depth = 2;
+
+        int depth = 0;
         int bestMove = moves.getFirst();
         double alpha = -Double.MAX_VALUE;
         double beta = Double.MAX_VALUE;
-        while (depth < 5) {
+
+        startTime = System.nanoTime();
+        while (System.nanoTime() - startTime < maxTime) {
 
             int bestMoveInDepth = moves.getFirst();
             moveEvaluations.clear();
             double minValue = Double.MAX_VALUE;
             for (Integer move : moves){
+
+                if (System.nanoTime() - startTime >= maxTime) break;
 
                 engine.move(move);
                 double value = max(depth, alpha, beta);
@@ -62,6 +71,8 @@ public class AI {
                     beta = value;
                 }
             }
+
+            if (System.nanoTime() - startTime >= maxTime) break;
 
             bestMove = bestMoveInDepth;
             sortTwoLists(moves, moveEvaluations);
@@ -84,9 +95,16 @@ public class AI {
         if (depth == 0)
             return evaluate();
 
+        if (System.nanoTime() - startTime >= maxTime) return 0;
+
         List<Integer> moves = engine.getAllValidMoves();
-        if (moves.isEmpty())
-            return Double.MAX_VALUE - 1;
+        if (moves.isEmpty()){
+            if (engine.isBlackInCheck)
+                return Double.MAX_VALUE - 1;
+            else
+                return 0;
+        }
+
 
         double min = Double.MAX_VALUE;
         for (Integer move : moves) {
@@ -109,9 +127,16 @@ public class AI {
         if (depth == 0)
             return evaluate();
 
+        if (System.nanoTime() - startTime >= maxTime) return 0;
+
         List<Integer> moves = engine.getAllValidMoves();
-        if (moves.isEmpty())
-            return -Double.MAX_VALUE + 1;
+        if (moves.isEmpty()){
+            if (engine.isWhiteInCheck)
+                return -Double.MAX_VALUE + 1;
+            else
+                return 0;
+        }
+
 
         double max = -Double.MAX_VALUE;
         for (Integer move : moves) {
